@@ -9,6 +9,7 @@ from napari.layers.utils.layer_utils import (
     _FeatureTable,
     calc_data_range,
     coerce_current_properties,
+    compute_multiscale_level_2d,
     dataframe_to_properties,
     dims_displayed_world_to_layer,
     get_current_properties,
@@ -509,3 +510,109 @@ def test_register_label_attr_action(monkeypatch):
     monkeypatch.setattr(time, 'time', lambda: 2)
     assert handler.release_key('K')
     assert foo.value == 0
+
+
+# --- Tests for compute_multiscale_level_2d / _3d ---
+
+
+def _make_downsample_factors(base_shape, n_levels):
+    """Build downsample factors array for a power-of-2 pyramid."""
+    factors = np.array(
+        [
+            np.array(base_shape) / (np.array(base_shape) // (2**i))
+            for i in range(n_levels)
+        ]
+    )
+    return factors
+
+
+class TestComputeMultiscaleLevel2d:
+    """Tests for compute_multiscale_level_2d."""
+
+    def _downsample_factors(self):
+        """4-level pyramid: 1024 -> 512 -> 256 -> 128, factors 1/2/4/8."""
+        return np.array([[1, 1], [2, 2], [4, 4], [8, 8]], dtype=float)
+
+    def test_zoomed_in_selects_finest(self):
+        """When viewing a small region, finest level should be selected."""
+        # Viewing 200x200 pixels on a 512x512 canvas → scaled_shape at
+        # level 0 is 200x200, which is below threshold, so level 0.
+        ds = self._downsample_factors()
+        level = compute_multiscale_level_2d(
+            requested_shape=np.array([200, 200]),
+            shape_threshold=(512, 512),
+            downsample_factors=ds,
+        )
+        assert level == 0
+
+    def test_zoomed_out_selects_coarser(self):
+        """When viewing a large region, a coarser level should be selected."""
+        ds = self._downsample_factors()
+        # Viewing 4096x4096 on a 512x512 canvas.
+        # scaled_shape at level 0: 4096 > 512 ✓
+        # scaled_shape at level 1: 2048 > 512 ✓
+        # scaled_shape at level 2: 1024 > 512 ✓
+        # scaled_shape at level 3: 512 > 512 ✗ (not strictly greater)
+        # → highest passing level is 2
+        level = compute_multiscale_level_2d(
+            requested_shape=np.array([4096, 4096]),
+            shape_threshold=(512, 512),
+            downsample_factors=ds,
+        )
+        assert level == 2
+
+    def test_very_zoomed_out_selects_coarsest(self):
+        """When viewing a very large region, coarsest level should be used."""
+        ds = self._downsample_factors()
+        level = compute_multiscale_level_2d(
+            requested_shape=np.array([100000, 100000]),
+            shape_threshold=(512, 512),
+            downsample_factors=ds,
+        )
+        assert level == 3
+
+    def test_no_level_above_threshold_returns_zero(self):
+        """When even the finest level is below threshold, return level 0."""
+        ds = self._downsample_factors()
+        # Viewing 100x100 on a 1024x1024 canvas — nothing exceeds threshold
+        level = compute_multiscale_level_2d(
+            requested_shape=np.array([100, 100]),
+            shape_threshold=(1024, 1024),
+            downsample_factors=ds,
+        )
+        assert level == 0
+
+    def test_single_level(self):
+        """With only one level, should always return 0."""
+        ds = np.array([[1, 1]], dtype=float)
+        level = compute_multiscale_level_2d(
+            requested_shape=np.array([5000, 5000]),
+            shape_threshold=(512, 512),
+            downsample_factors=ds,
+        )
+        assert level == 0
+
+    def test_anisotropic_downsample(self):
+        """Level selection works when downsample factors differ per axis."""
+        # Level 0: (1, 1), Level 1: (2, 4), Level 2: (4, 16)
+        ds = np.array([[1, 1], [2, 4], [4, 16]], dtype=float)
+        # Viewing 2000x2000, threshold 512x512
+        # Level 0: 2000 > 512, 2000 > 512 ✓
+        # Level 1: 1000 > 512, 500 < 512 ✗
+        # → only level 0 passes on all axes
+        level = compute_multiscale_level_2d(
+            requested_shape=np.array([2000, 2000]),
+            shape_threshold=(512, 512),
+            downsample_factors=ds,
+        )
+        assert level == 0
+
+        # Viewing 8000x8000 — level 1 now passes too
+        # Level 1: 4000 > 512, 2000 > 512 ✓
+        # Level 2: 2000 > 512, 500 < 512 ✗
+        level = compute_multiscale_level_2d(
+            requested_shape=np.array([8000, 8000]),
+            shape_threshold=(512, 512),
+            downsample_factors=ds,
+        )
+        assert level == 1

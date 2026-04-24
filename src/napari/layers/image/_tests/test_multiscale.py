@@ -498,3 +498,90 @@ def test_update_draw_variable_canvas_size_fixed_fov(
 
     assert layer.data_level == exp_level
     np.testing.assert_equal(layer.corner_pixels, exp_corner_pixels_data)
+
+
+class TestComputeCornerPixels:
+    """Tests for Layer._compute_corner_pixels."""
+
+    def _make_multiscale_layer(self):
+        """Create a 3-level multiscale Image: 20x20 / 10x10 / 5x5."""
+        shapes = [(20, 20), (10, 10), (5, 5)]
+        data = [np.zeros(s) for s in shapes]
+        return Image(data, multiscale=True)
+
+    def _make_single_scale_layer(self):
+        """Create a single-scale 20x20 Image."""
+        return Image(np.zeros((20, 20)))
+
+    def test_multiscale_level0_full_view(self):
+        """Viewport covering full extent at level 0 returns full corners."""
+        layer = self._make_multiscale_layer()
+        displayed_axes = tuple(layer._slice_input.displayed)
+        bbox = np.array([[0, 0], [20, 20]])
+        corners = layer._compute_corner_pixels(
+            bbox, level=0, displayed_axes=displayed_axes
+        )
+        np.testing.assert_array_equal(corners, [[0, 0], [19, 19]])
+
+    def test_multiscale_level1_full_view(self):
+        """Viewport covering full extent rescaled to level 1."""
+        layer = self._make_multiscale_layer()
+        displayed_axes = tuple(layer._slice_input.displayed)
+        bbox = np.array([[0, 0], [20, 20]])
+        corners = layer._compute_corner_pixels(
+            bbox, level=1, displayed_axes=displayed_axes
+        )
+        # 20 / 2 = 10 -> ceil(10) = 10, clipped to max 9
+        np.testing.assert_array_equal(corners, [[0, 0], [9, 9]])
+
+    def test_multiscale_level2_full_view(self):
+        """Viewport covering full extent rescaled to level 2."""
+        layer = self._make_multiscale_layer()
+        displayed_axes = tuple(layer._slice_input.displayed)
+        bbox = np.array([[0, 0], [20, 20]])
+        corners = layer._compute_corner_pixels(
+            bbox, level=2, displayed_axes=displayed_axes
+        )
+        # 20 / 4 = 5 -> ceil(5) = 5, clipped to max 4
+        np.testing.assert_array_equal(corners, [[0, 0], [4, 4]])
+
+    def test_multiscale_partial_view(self):
+        """Viewport covering a sub-region rescaled to level 0."""
+        layer = self._make_multiscale_layer()
+        displayed_axes = tuple(layer._slice_input.displayed)
+        bbox = np.array([[5, 5], [15, 15]])
+        corners = layer._compute_corner_pixels(
+            bbox, level=0, displayed_axes=displayed_axes
+        )
+        np.testing.assert_array_equal(corners, [[5, 5], [15, 15]])
+
+    def test_multiscale_clips_to_level_shape(self):
+        """Viewport extending beyond data is clipped to level shape."""
+        layer = self._make_multiscale_layer()
+        displayed_axes = tuple(layer._slice_input.displayed)
+        bbox = np.array([[-10, -10], [100, 100]])
+        corners = layer._compute_corner_pixels(
+            bbox, level=0, displayed_axes=displayed_axes
+        )
+        np.testing.assert_array_equal(corners[0], [0, 0])
+        np.testing.assert_array_equal(corners[1], [19, 19])
+
+    def test_single_scale_clips_to_extent(self):
+        """Non-multiscale layer clips viewport to data extent."""
+        layer = self._make_single_scale_layer()
+        displayed_axes = tuple(layer._slice_input.displayed)
+        bbox = np.array([[-5, -5], [30, 30]])
+        corners = layer._compute_corner_pixels(
+            bbox, level=0, displayed_axes=displayed_axes
+        )
+        np.testing.assert_array_equal(corners, [[0, 0], [19, 19]])
+
+    def test_single_scale_within_extent(self):
+        """Non-multiscale layer with viewport inside data extent."""
+        layer = self._make_single_scale_layer()
+        displayed_axes = tuple(layer._slice_input.displayed)
+        bbox = np.array([[3, 3], [10, 10]])
+        corners = layer._compute_corner_pixels(
+            bbox, level=0, displayed_axes=displayed_axes
+        )
+        np.testing.assert_array_equal(corners, [[3, 3], [10, 10]])

@@ -569,26 +569,25 @@ def coerce_current_properties(
     return coerced_current_properties
 
 
-def compute_multiscale_level(
-    requested_shape, shape_threshold, downsample_factors
-):
-    """Computed desired level of the multiscale given requested field of view.
+def compute_multiscale_level_2d(
+    requested_shape: tuple,
+    shape_threshold: tuple,
+    downsample_factors: np.ndarray,
+) -> int:
+    """Compute the desired multiscale level for 2D display.
 
-    The level of the multiscale should be the lowest resolution such that
-    the requested shape is above the shape threshold. By passing a shape
-    threshold corresponding to the shape of the canvas on the screen this
-    ensures that we have at least one data pixel per screen pixel, but no
-    more than we need.
+    Selects the lowest resolution level such that the requested field
+    of view still has at least one data pixel per screen pixel.
 
     Parameters
     ----------
     requested_shape : tuple
-        Requested shape of field of view in data coordinates
+        Requested shape of field of view in data coordinates.
     shape_threshold : tuple
         Maximum size of a displayed tile in pixels.
     downsample_factors : list of tuple
-        Downsampling factors for each level of the multiscale. Must be increasing
-        for each level of the multiscale.
+        Downsampling factors for each level of the multiscale. Must be
+        increasing for each level of the multiscale.
 
     Returns
     -------
@@ -604,10 +603,35 @@ def compute_multiscale_level(
     return level
 
 
+def compute_multiscale_level_3d(n_levels: int) -> int:
+    """Compute the desired multiscale level for 3D display.
+
+    Currently returns the coarsest (last) level. This trivial function
+    exists as a seam for future smarter 3D level selection.
+
+    Parameters
+    ----------
+    n_levels : int
+        Total number of multiscale levels.
+
+    Returns
+    -------
+    level : int
+        Level of the multiscale to be viewing.
+    """
+    return n_levels - 1
+
+
 def compute_multiscale_level_and_corners(
-    corner_pixels, shape_threshold, downsample_factors
-):
+    corner_pixels: np.ndarray,
+    shape_threshold: tuple,
+    downsample_factors: np.ndarray,
+) -> tuple[int, np.ndarray]:
     """Computed desired level and corners of a multiscale view.
+
+    .. deprecated:: 0.6.0
+        Use :func:`compute_multiscale_level_2d` together with
+        :meth:`Layer._compute_corner_pixels` instead.
 
     The level of the multiscale should be the lowest resolution such that
     the requested shape is above the shape threshold. By passing a shape
@@ -632,8 +656,15 @@ def compute_multiscale_level_and_corners(
     corners : array (2, D)
         Needed corner pixels at target resolution.
     """
+    warnings.warn(
+        trans._(
+            'compute_multiscale_level_and_corners is deprecated since version 0.6.0. Use compute_multiscale_level_2d together with Layer._compute_corner_pixels instead.',
+        ),
+        category=FutureWarning,
+        stacklevel=2,
+    )
     requested_shape = corner_pixels[1] - corner_pixels[0]
-    level = compute_multiscale_level(
+    level = compute_multiscale_level_2d(
         requested_shape, shape_threshold, downsample_factors
     )
 
