@@ -447,8 +447,8 @@ def test_5D_multiscale():
     assert layer.ndim == len(shapes[0])
 
 
-def test_multiscale_data_protocol():
-    """Test multiscale data provides basic data protocol."""
+def test_multiscale_data_basic_attributes():
+    """Test MultiScaleData's basic (non-LayerDataProtocol) attributes."""
     shapes = [(2, 5, 20, 20), (2, 5, 10, 10), (2, 5, 5, 5)]
     np.random.seed(0)
     data = [np.random.random(s) for s in shapes]
@@ -460,7 +460,7 @@ def test_multiscale_data_protocol():
     assert layer.multiscale is True
 
     assert layer.data.dtype == float
-    assert layer.data.shape == shapes[0]
+    assert layer.data.get_level(0).shape == shapes[0]
     assert isinstance(layer.data[0], np.ndarray)
 
 
@@ -564,7 +564,7 @@ def test_single_array_with_multiscale_true_is_single_level():
     assert layer.multiscale is True
     assert layer.ndim == 3
     assert layer.data.nlevels == 1
-    assert layer.data.shape == (10, 10, 10)
+    assert layer.data.get_level(0).shape == (10, 10, 10)
     np.testing.assert_array_equal(layer.data[0], data)
 
 

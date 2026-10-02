@@ -157,7 +157,7 @@ def test_images_to_stack_multiscale():
 
     assert isinstance(stack, Image)
     assert stack.multiscale is True
-    assert stack.data.shape == (2, 100, 100)
+    assert stack.data.get_level(0).shape == (2, 100, 100)
 
 
 def test_split_and_merge_rgb():

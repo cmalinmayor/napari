@@ -260,7 +260,7 @@ class ScalarFieldBase(Layer, ABC):
 
         # Determine dimensionality of the data
         if ndim is None:
-            ndim = len(data.shape)
+            ndim = data.ndim
         self._data = data
 
         # Xarray metadata inference is a no-op if data is not xarray-like
@@ -638,7 +638,7 @@ class ScalarFieldBase(Layer, ABC):
 
     def _reset_plane_parameters(self):
         """Set plane attributes to something valid."""
-        self.plane.position = np.array(self.data.shape) / 2  # pyrefly: ignore [bad-assignment]
+        self.plane.position = np.array(self.level_shapes[self.data_level]) / 2
         self.plane.normal = (1, 0, 0)
 
     def _update_plane_callbacks(self):
@@ -728,9 +728,7 @@ class ScalarFieldBase(Layer, ABC):
         coord = np.round(coord).astype(int)
 
         raw = self._slice.image.raw
-        shape = (
-            raw.shape[:-1] if self.ndim != len(self._data.shape) else raw.shape
-        )
+        shape = raw.shape[:-1] if self.ndim != self._data.ndim else raw.shape
 
         if self.ndim < len(coord):
             # handle 3D views of 2D data by omitting extra coordinate
@@ -898,7 +896,7 @@ class ScalarFieldSlicingState(_LayerSlicingState):
         )
         self._slice = _ScalarFieldSliceResponse.make_empty(
             slice_input=self._slice_input,
-            rgb=len(self.layer.data.shape) != self.ndim,
+            rgb=self.layer.data.ndim != self.ndim,
             dtype=self.layer._slice_dtype(),
         )
 
@@ -938,7 +936,7 @@ class ScalarFieldSlicingState(_LayerSlicingState):
         if changed and not self.layer.visible:
             self._slice = _ScalarFieldSliceResponse.make_empty(
                 slice_input=self._slice_input,
-                rgb=len(self.layer.data.shape) != self.ndim,
+                rgb=self.layer.data.ndim != self.ndim,
                 dtype=self.layer._slice_dtype(),
             )
         return changed
@@ -1015,7 +1013,7 @@ class ScalarFieldSlicingState(_LayerSlicingState):
             projection_mode=self.layer.projection_mode,
             multiscale=self.layer.multiscale,
             corner_pixels=self.layer.corner_pixels,
-            rgb=len(self.layer.data.shape) != self.ndim,
+            rgb=self.layer.data.ndim != self.ndim,
             data_level=data_level,
             thumbnail_level=thumbnail_level,
             level_shapes=self.layer.level_shapes,

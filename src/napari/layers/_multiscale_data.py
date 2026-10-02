@@ -68,7 +68,7 @@ def validate_multiscale_data(
     return data
 
 
-# note: this also implements `LayerDataProtocol`, but we don't need to inherit.
+# note: this DOES NOT implement `LayerDataProtocol`, but it does implement Sequence[LayerDataProtocol]
 class MultiScaleData(Sequence[LayerDataProtocol]):
     """Wrapper for multiscale data, to provide consistent API.
 
@@ -97,11 +97,6 @@ class MultiScaleData(Sequence[LayerDataProtocol]):
         self._data: list[LayerDataProtocol] = validate_multiscale_data(data)
 
     @property
-    def size(self) -> int:
-        """Size of the first scale."""
-        return self._data[0].size
-
-    @property
     def ndim(self) -> int:
         """ndim of the first scale."""
         return self._data[0].ndim
@@ -124,11 +119,6 @@ class MultiScaleData(Sequence[LayerDataProtocol]):
     def dtype(self) -> npt.DTypeLike:
         """dtype of the first scale.."""
         return self._data[0].dtype
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Shape of the first scale."""
-        return self._data[0].shape
 
     @property
     def shapes(self) -> tuple[tuple[int, ...], ...]:
