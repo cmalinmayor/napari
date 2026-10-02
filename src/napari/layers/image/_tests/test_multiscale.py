@@ -460,20 +460,8 @@ def test_multiscale_data_basic_attributes():
     assert layer.multiscale is True
 
     assert layer.data.dtype == float
-    assert layer.data.get_level(0).shape == shapes[0]
+    assert layer.data[0].shape == shapes[0]
     assert isinstance(layer.data[0], np.ndarray)
-
-
-def test_multiscale_data_get_level():
-    """Test MultiScaleData.get_level returns the correct level's data."""
-    shapes = [(20, 20), (10, 10), (5, 5)]
-    np.random.seed(0)
-    data = [np.random.random(s) for s in shapes]
-    multiscale_data = MultiScaleData(data)
-
-    for i, level_data in enumerate(data):
-        np.testing.assert_array_equal(multiscale_data.get_level(i), level_data)
-        assert multiscale_data.get_level(i) is multiscale_data[i]
 
 
 def test_multiscale_data_levels():
@@ -492,15 +480,15 @@ def test_multiscale_data_levels():
     assert multiscale_data.nlevels == len(shapes)
 
 
-def test_multiscale_data_get_level_out_of_bounds():
-    """Test MultiScaleData.get_level raises for an out-of-bounds level."""
+def test_multiscale_data_getitem_out_of_bounds():
+    """Test MultiScaleData.__getitem__ raises for an out-of-bounds level."""
     shapes = [(20, 20), (10, 10), (5, 5)]
     np.random.seed(0)
     data = [np.random.random(s) for s in shapes]
     multiscale_data = MultiScaleData(data)
 
-    with pytest.raises(ValueError, match='out of bounds'):
-        multiscale_data.get_level(len(shapes))
+    with pytest.raises(IndexError):
+        multiscale_data[len(shapes)]
 
 
 def test_validate_multiscale_data_list_of_arrays_decreasing():
@@ -564,7 +552,7 @@ def test_single_array_with_multiscale_true_is_single_level():
     assert layer.multiscale is True
     assert layer.ndim == 3
     assert layer.data.nlevels == 1
-    assert layer.data.get_level(0).shape == (10, 10, 10)
+    assert layer.data[0].shape == (10, 10, 10)
     np.testing.assert_array_equal(layer.data[0], data)
 
 

@@ -125,30 +125,6 @@ class MultiScaleData(Sequence[LayerDataProtocol]):
         """Tuple of shapes for all scales."""
         return tuple(im.shape for im in self._data)
 
-    def get_level(self, i: int) -> LayerDataProtocol:
-        """Get the array-like data at resolution level `i`.
-
-        Parameters
-        ----------
-        i : int
-            Resolution level of data to return.
-
-        Returns
-        -------
-        LayerDataProtocol
-            The array-like data at resolution level `i`.
-
-        Raises
-        ------
-        ValueError
-            If `i` is out of bounds of the resolution levels.
-        """
-        if i >= self.nlevels:
-            raise ValueError(
-                f'Level {i} out of bounds for {self.nlevels} multiscale levels'
-            )
-        return self._data[i]
-
     @overload
     def __getitem__(self, i: int) -> LayerDataProtocol: ...
     @overload
@@ -162,7 +138,7 @@ class MultiScaleData(Sequence[LayerDataProtocol]):
     def __array__(self) -> npt.NDArray:
         """Get numpy array of the lowest resolution level."""
         warnings.warn(
-            'MultiScaleData.__array__ gives you the lowest resolution, while MultiScaleData.shape gives you the high resolution shape. Use MultiScaleData.get_level() to get a specific resolution level'
+            'MultiScaleData.__array__ gives you the lowest resolution. Use MultiScaleData[level] to get a specific resolution level'
         )
         return np.asarray(self._data[-1])
 
